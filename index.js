@@ -1,9 +1,21 @@
-
-
 const express = require("express");
 const cors = require("cors");
 
+// const connection = require("./src/database/db");
+const User = require("./src/models/user");
+const Property = require("./src/models/property");
+
 const app = express();
+const config = {
+    host: "localhost",
+    port: 3306,
+    user: "root",
+    password: "rootroot",
+    database: "fs_bnb"
+};
+const mysql = require('mysql');
+const connection = mysql.createConnection(config);
+connection.connect();
 
 
 app.use(cors());
@@ -28,12 +40,16 @@ app.post("/users/authentication", (req, res) => {
     bodyEmail = user.email;
     bodyPassword = user.password;
 
-    user.getUserByEmail(bodyEmail, (err, result) => {
+    User.getUserByEmail(bodyEmail, (err, result) => {
         if (err) {
-            return res.status(404).json({message: "User not found"});
+            return res.status(404).json({message: "Failed to check login. Technical error."});
         } else {
+            if (result.length == 0) {
+                return res.status(401).json({message: "Invalid email"});
+            }
+
             if (result[0].password === bodyPassword) {
-                return res.json(result);
+                return res.json(result[0]);
             }
             else {
                 return res.status(404).json({message: "Incorrect password"});
@@ -41,7 +57,7 @@ app.post("/users/authentication", (req, res) => {
         }
     });
 
-    let foundUser = null;
+    // let foundUser = null;
     // for (var k = 0; k < users.length; ++k) {
     //     if (users[k].email === bodyEmail) {
     //         if (users[k].password === bodyPassword) {
@@ -51,36 +67,36 @@ app.post("/users/authentication", (req, res) => {
     // }
 
 
-    connection.query("SELECT * FROM user WHERE email = ? AND password = ?", [bodyEmail, bodyPassword], (err, result) => {
-        if (err) {
-            console.log(err);
+    // connection.query("SELECT * FROM user WHERE email = ? AND password = ?", [bodyEmail, bodyPassword], (err, result) => {
+    //     if (err) {
+    //         console.log(err);
 
-            if (err.code === 'ER_DUP_ENTRY') {
-                return res.status(400).json({ message: err.sqlMessage });
+    //         if (err.code === 'ER_DUP_ENTRY') {
+    //             return res.status(400).json({ message: err.sqlMessage });
 
-            } else {
+    //         } else {
 
-                return res.status(500).json({ message: "Failed to insert. Please try again." });
-            }
+    //             return res.status(500).json({ message: "Failed to insert. Please try again." });
+    //         }
 
-            console.log(result);
+    //         console.log(result);
 
-            var responseUser = {
-                id: result.insertId,
-                name: result.name,
-                email: user.email,
-                password: user.password
-            };
+    //         var responseUser = {
+    //             id: result.insertId,
+    //             name: result.name,
+    //             email: user.email,
+    //             password: user.password
+    //         };
 
-            return res.status(200).json(responseUser);
+    //         return res.status(200).json(responseUser);
 
         
-    }});
+    // }});
 
-    if (foundUser != null) {
-        return res.status(200).json({message: "login successful"});
-    }
-    return res.status(404).json({message: "user not found"});
+    // if (foundUser != null) {
+    //     return res.status(200).json({message: "login successful"});
+    // }
+    // return res.status(404).json({message: "user not found"});
 
 });
 
@@ -98,6 +114,16 @@ app.post("/users", (req, res) => {
                 return res.status(500).json({ message: "Failed to insert"});
             }
         }
+
+        var newUser = {
+            id: result.insertId,
+            firstname: user.firstname,
+            lastname: user.lastname,
+            email: user.email,
+            password: user.password
+        };
+        // users.push(newUser);
+        return res.status(200).json(newUser);
     });
 
         
@@ -116,15 +142,7 @@ app.post("/users", (req, res) => {
     // }
 
             
-    var newUser = {
-        id: result.insertId,
-        firstname: user.firstname,
-        lastname: user.lastname,
-        email: user.email,
-        password: user.password
-    };
-    // users.push(newUser);
-    return res.status(200).json(newUser);
+
 });
             
 app.post("/properties", (req, res) => {
@@ -142,17 +160,16 @@ app.post("/properties", (req, res) => {
         price: bodyprice,
     };
 
-    properties.push(newProp);
-    res.json(newProp);
-
+    Property.createProperty(newProp, (err, result) => {
+        res.json(newProp);
+    })
 });     
 
 app.get("/properties/:id", (req, res) => {
-    properties.forEach(property => {
-        if (property.id === parseInt(req.params.id)) {
-            return res.json(property);
-        }
-    });
+    const propId = req.params.id;
+    Property.getPropertyById(propId, (err, result) => {
+        res.json(result);
+    })
 });
 
 app.delete("/properties/:id", (req, res) => {
@@ -186,6 +203,25 @@ app.get("/properties/:id/bookings", (req, res) => {
         }
     });
 });
+
+app.get("/properties", (req, res) => {
+    connection.query("Select * from property", (err, result) => {
+        if(err) {
+            console.log("error");
+            return res.status(500).json({message: "Failed"});
+        }
+        else {
+            console.log(result);
+            return res.status(200).json(result);
+        }
+    })
+    // console.log("here");
+    // Property.getAllProperties((err, result) => {
+    //     console.log("here");
+    //     res.json(result);
+    // })
+});
+
 
 app.listen(3000, ()=>console.log("server is valid"));
            

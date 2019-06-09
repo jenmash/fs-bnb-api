@@ -21,7 +21,7 @@
 // }
 // var user = new User("Jen");
 
-var mysqlConn = requier("./db");
+var mysqlConn = require("../database/db");
 
 var User = function(user) {
     this.name = user.name;
